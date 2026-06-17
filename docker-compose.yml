@@ -1,4 +1,5 @@
 services:
+  # Banco relacional compartilhado por todas as replicas da API.
   postgres:
     image: postgres:16-alpine
     environment:
@@ -15,6 +16,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis compartilhado para blacklist de JWT, rate limit e cache.
   redis:
     image: redis:7-alpine
     ports:
@@ -25,6 +27,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # Broker Kafka usado pela API para publicar/consumir eventos.
   kafka:
     image: bitnami/kafka:latest
     ports:
@@ -46,6 +49,7 @@ services:
       timeout: 5s
       retries: 10
 
+  # API Spring Boot sem porta publicada diretamente; o acesso externo passa pelo Nginx.
   api:
     build: .
     depends_on:
@@ -65,8 +69,24 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       JWT_SECRET: change-this-secret-before-production-change-this-secret
       CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+    expose:
+      # Porta interna usada pelo Nginx e pelas outras replicas na rede default do Compose.
+      - "8080"
+
+  # Reverse proxy e load balancer HTTP exposto para os clientes.
+  nginx:
+    image: nginx:alpine
+    depends_on:
+      # Garante que o servico api seja criado antes do Nginx tentar resolver o upstream.
+      - api
     ports:
-      - "8080:8080"
+      # Clientes acessam localhost:8080; o Nginx encaminha para as replicas api:8080.
+      - "8080:80"
+    volumes:
+      # Configuracao comentada do upstream e das diretivas de proxy.
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
 
 volumes:
+  # Volume persistente do PostgreSQL.
   postgres_data:
