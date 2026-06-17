@@ -6,6 +6,7 @@
 ![Redis](https://img.shields.io/badge/Redis-7-red)
 ![Kafka](https://img.shields.io/badge/Kafka-KRaft-black)
 ![Tests](https://img.shields.io/badge/tests-JUnit%205%20%2B%20Mockito-brightgreen)
+![CI/CD](https://github.com/devguilhrm/API-Manager/actions/workflows/ci.yml/badge.svg)
 
 REST API for CRM and sales operations built with Spring Boot. Supports multi-role workflows (managers and sellers), JWT authentication with refresh-token rotation, Redis-backed security controls, asynchronous Kafka events, and horizontal scaling behind an Nginx load balancer.
 
@@ -19,6 +20,7 @@ REST API for CRM and sales operations built with Spring Boot. Supports multi-rol
 - [Getting started](#getting-started)
 - [Running with Docker Compose](#running-with-docker-compose)
 - [Horizontal scaling](#horizontal-scaling)
+- [CI/CD](#cicd)
 - [API reference](#api-reference)
 - [Configuration](#configuration)
 - [Tests](#tests)
@@ -218,6 +220,28 @@ docker compose restart nginx
 docker compose ps
 docker compose logs -f nginx api
 ```
+
+---
+
+## CI/CD
+
+The repository includes a GitHub Actions pipeline in `.github/workflows/ci.yml`.
+
+On pull requests to `main`, the workflow:
+
+- Sets up Java 17 with Maven dependency caching.
+- Runs `./mvnw -B verify`.
+- Uploads Surefire test reports.
+- Builds the Docker image to validate the Dockerfile.
+
+On pushes to `main`, the workflow also publishes the Docker image to GitHub Container Registry:
+
+```text
+ghcr.io/devguilhrm/api-erp:latest
+ghcr.io/devguilhrm/api-erp:sha-<commit>
+```
+
+The Docker build uses GitHub Actions cache through Buildx to keep repeated builds faster.
 
 ---
 
