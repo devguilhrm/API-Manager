@@ -136,7 +136,8 @@ CANCELLED ◀──────────────────── CANCEL
 ### Useful commands
 
 ```bash
-./mvnw test                          # run all tests
+./mvnw test                          # run test suite
+./mvnw -B verify                     # run the same Maven verification used by CI
 ./mvnw clean package                 # build jar
 docker compose up -d --build         # start full stack
 docker compose up -d --build --scale api=3  # start with 3 API replicas
@@ -424,8 +425,15 @@ All values can be overridden via environment variables in `docker-compose.yml` o
 ./mvnw test
 ```
 
+For the same lifecycle used by CI:
+
+```bash
+./mvnw -B verify
+```
+
 Coverage includes:
 
+- HTTP controller contracts with MockMvc for authentication and product creation.
 - Authentication: login, invalid credentials, refresh flow.
 - Refresh-token: create, validate, rotate, revoke, hashing.
 - Login rate limiting and token blacklist.
@@ -434,7 +442,7 @@ Coverage includes:
 - Client ownership and seller isolation.
 - Product creation and listing.
 - Sale creation, pending-stock checks, completion, cancellation, stock return, and overselling prevention.
-- Integration flow with Testcontainers (skipped automatically when Docker is unavailable).
+- Integration flow with Testcontainers. Tests that require Docker are skipped automatically when Docker is unavailable.
 
 ---
 
