@@ -16,7 +16,11 @@ public interface ProductService {
 
 	ProductDTO getById(UUID id);
 
-	Page<ProductDTO> list(Pageable pageable);
+	default Page<ProductDTO> list(Pageable pageable) {
+		return list(null, null, null, pageable);
+	}
+
+	Page<ProductDTO> list(String search, Boolean active, Integer lowStockThreshold, Pageable pageable);
 
 	void delete(UUID id);
 }

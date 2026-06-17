@@ -14,6 +14,8 @@ public interface AuthService {
 
 	AuthResponse refresh(String refreshToken);
 
+	void logout(String refreshToken);
+
 	UserDTO createUser(CreateUserRequest request);
 
 	Page<UserDTO> listSellers(Pageable pageable);

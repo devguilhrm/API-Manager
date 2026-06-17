@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,8 +20,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Tag(name = "Vendas", description = "Fluxo de vendas e itens")
@@ -37,8 +40,15 @@ public class SaleController {
 	@Operation(summary = "Lista vendas", description = "Managers veem todas; sellers veem apenas suas vendas")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendas listadas")
 	@GetMapping
-	public ResponseEntity<ApiResponse<PageResponse<SaleDTO>>> list(Pageable pageable) {
-		return ResponseEntity.ok(ApiResponse.success("Vendas listadas com sucesso", PageResponse.from(saleService.list(pageable))));
+	public ResponseEntity<ApiResponse<PageResponse<SaleDTO>>> list(
+			@RequestParam(required = false) com.devguilhrm.API_ERP.sale.enums.SaleStatus status,
+			@RequestParam(required = false) UUID sellerId,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+			Pageable pageable
+	) {
+		return ResponseEntity.ok(ApiResponse.success("Vendas listadas com sucesso",
+				PageResponse.from(saleService.list(status, sellerId, from, to, pageable))));
 	}
 
 	@Operation(summary = "Busca venda", description = "Busca venda por ID respeitando isolamento por vendedor")

@@ -10,8 +10,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HexFormat;
 import java.util.UUID;
 
 @Service
@@ -35,23 +39,52 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 	public RefreshToken create(User user) {
 		log.info("Criando refresh token para usuario {}", user.getEmail());
 		refreshTokenRepository.revokeActiveTokensByUser(user);
-		return refreshTokenRepository.save(RefreshToken.builder()
+		String rawToken = UUID.randomUUID().toString();
+		RefreshToken refreshToken = refreshTokenRepository.save(RefreshToken.builder()
 				.user(user)
-				.token(UUID.randomUUID().toString())
+				.token(hash(rawToken))
 				.expiresAt(Instant.now().plus(refreshTokenExpirationDays, ChronoUnit.DAYS))
 				.revoked(false)
 				.build());
+		refreshToken.setRawToken(rawToken);
+		return refreshToken;
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public RefreshToken validate(String token) {
-		RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
+		RefreshToken refreshToken = refreshTokenRepository.findByToken(hash(token))
 				.orElseThrow(() -> new UnauthorizedOperationException("Refresh token invalido"));
 		if (refreshToken.isRevoked() || refreshToken.isExpired()) {
 			log.warn("Refresh token invalido ou expirado");
 			throw new UnauthorizedOperationException("Refresh token expirado ou revogado");
 		}
 		return refreshToken;
+	}
+
+	@Override
+	@Transactional
+	public RefreshToken rotate(String token) {
+		RefreshToken current = validate(token);
+		current.setRevoked(true);
+		refreshTokenRepository.save(current);
+		return create(current.getUser());
+	}
+
+	@Override
+	@Transactional
+	public void revoke(String token) {
+		RefreshToken refreshToken = validate(token);
+		refreshToken.setRevoked(true);
+		refreshTokenRepository.save(refreshToken);
+	}
+
+	private String hash(String token) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			return HexFormat.of().formatHex(digest.digest(token.getBytes(StandardCharsets.UTF_8)));
+		} catch (NoSuchAlgorithmException ex) {
+			throw new IllegalStateException("SHA-256 indisponivel", ex);
+		}
 	}
 }

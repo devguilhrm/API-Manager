@@ -40,4 +40,12 @@ public class AuthController {
 	public ResponseEntity<ApiResponse<AuthResponse>> refresh(@Valid @RequestBody RefreshRequest request) {
 		return ResponseEntity.ok(ApiResponse.success("Token renovado com sucesso", authService.refresh(request.refreshToken())));
 	}
+
+	@Operation(summary = "Revoga refresh token", description = "Encerra a sessao associada ao refresh token informado")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Logout realizado")
+	@PostMapping("/logout")
+	public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody RefreshRequest request) {
+		authService.logout(request.refreshToken());
+		return ResponseEntity.ok(ApiResponse.success("Logout realizado com sucesso", null));
+	}
 }

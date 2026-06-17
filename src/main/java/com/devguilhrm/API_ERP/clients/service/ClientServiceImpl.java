@@ -82,12 +82,12 @@ public class ClientServiceImpl implements ClientService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public Page<ClientDTO> list(Pageable pageable) {
+	public Page<ClientDTO> list(String search, UUID sellerId, Pageable pageable) {
 		User user = authService.getAuthenticatedUser();
 		if (user.getRole() == Role.SELLER) {
-			return clientRepository.findAllBySellerId(user.getId(), pageable).map(clientMapper::toDto);
+			return clientRepository.search(normalize(search), user.getId(), pageable).map(clientMapper::toDto);
 		}
-		return clientRepository.findAll(pageable).map(clientMapper::toDto);
+		return clientRepository.search(normalize(search), sellerId, pageable).map(clientMapper::toDto);
 	}
 
 	@Override
@@ -114,5 +114,9 @@ public class ClientServiceImpl implements ClientService {
 			throw new UnauthorizedOperationException("Cliente pertence a outro vendedor");
 		}
 		return client;
+	}
+
+	private String normalize(String value) {
+		return value == null || value.isBlank() ? null : value.trim();
 	}
 }

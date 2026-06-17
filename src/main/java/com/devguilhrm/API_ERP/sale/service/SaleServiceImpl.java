@@ -17,9 +17,12 @@ import com.devguilhrm.API_ERP.sale.dto.CreateSaleRequest;
 import com.devguilhrm.API_ERP.sale.dto.SaleDTO;
 import com.devguilhrm.API_ERP.sale.entity.Sale;
 import com.devguilhrm.API_ERP.sale.entity.SaleItem;
+import com.devguilhrm.API_ERP.sale.entity.SaleStatusHistory;
 import com.devguilhrm.API_ERP.sale.enums.SaleStatus;
 import com.devguilhrm.API_ERP.sale.mapper.SaleMapper;
+import com.devguilhrm.API_ERP.sale.repository.SaleItemRepository;
 import com.devguilhrm.API_ERP.sale.repository.SaleRepository;
+import com.devguilhrm.API_ERP.sale.repository.SaleStatusHistoryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -28,6 +31,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -38,6 +45,8 @@ public class SaleServiceImpl implements SaleService {
 	private final SaleRepository saleRepository;
 	private final ClientRepository clientRepository;
 	private final ProductRepository productRepository;
+	private final SaleItemRepository saleItemRepository;
+	private final SaleStatusHistoryRepository saleStatusHistoryRepository;
 	private final SaleMapper saleMapper;
 	private final AuthService authService;
 
@@ -45,12 +54,16 @@ public class SaleServiceImpl implements SaleService {
 			SaleRepository saleRepository,
 			ClientRepository clientRepository,
 			ProductRepository productRepository,
+			SaleItemRepository saleItemRepository,
+			SaleStatusHistoryRepository saleStatusHistoryRepository,
 			SaleMapper saleMapper,
 			AuthService authService
 	) {
 		this.saleRepository = saleRepository;
 		this.clientRepository = clientRepository;
 		this.productRepository = productRepository;
+		this.saleItemRepository = saleItemRepository;
+		this.saleStatusHistoryRepository = saleStatusHistoryRepository;
 		this.saleMapper = saleMapper;
 		this.authService = authService;
 	}
@@ -79,10 +92,13 @@ public class SaleServiceImpl implements SaleService {
 				.build();
 
 		BigDecimal subtotal = BigDecimal.ZERO;
+		Map<UUID, Integer> requestedByProduct = new HashMap<>();
 		for (CreateSaleItemRequest itemRequest : request.items()) {
 			Product product = productRepository.findById(itemRequest.productId())
 					.orElseThrow(() -> new ResourceNotFoundException("Produto", itemRequest.productId()));
-			validateStock(product, itemRequest.quantity());
+			int requestedQuantity = requestedByProduct.getOrDefault(product.getId(), 0) + itemRequest.quantity();
+			validateStockForPendingSale(product, requestedQuantity);
+			requestedByProduct.put(product.getId(), requestedQuantity);
 			BigDecimal itemTotal = product.getPrice().multiply(BigDecimal.valueOf(itemRequest.quantity()));
 			subtotal = subtotal.add(itemTotal);
 			sale.addItem(SaleItem.builder()
@@ -99,13 +115,15 @@ public class SaleServiceImpl implements SaleService {
 		}
 		sale.setTotalAmount(total);
 		log.info("Criando venda pendente para cliente {}", client.getId());
-		return saleMapper.toDto(saleRepository.save(sale));
+		Sale savedSale = saleRepository.save(sale);
+		recordStatusChange(savedSale, null, SaleStatus.PENDING, null, seller);
+		return saleMapper.toDto(savedSale);
 	}
 
 	@Override
 	@Transactional
 	public SaleDTO complete(UUID id) {
-		ensureManager();
+		User manager = ensureManager();
 		Sale sale = saleRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Venda", id));
 		ensureCanTransition(sale);
@@ -119,18 +137,22 @@ public class SaleServiceImpl implements SaleService {
 			product.setStockQuantity(product.getStockQuantity() - item.getQuantity());
 			productRepository.save(product);
 		}
+		SaleStatus previousStatus = sale.getStatus();
 		sale.setStatus(SaleStatus.COMPLETED);
 		log.info("Venda {} finalizada", id);
-		return saleMapper.toDto(saleRepository.save(sale));
+		Sale savedSale = saleRepository.save(sale);
+		recordStatusChange(savedSale, previousStatus, SaleStatus.COMPLETED, null, manager);
+		return saleMapper.toDto(savedSale);
 	}
 
 	@Override
 	@Transactional
 	public SaleDTO cancel(UUID id, CancelSaleRequest request) {
-		ensureManager();
+		User manager = ensureManager();
 		Sale sale = saleRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Venda", id));
 		ensureCanTransition(sale);
+		SaleStatus previousStatus = sale.getStatus();
 		if (sale.getStatus() == SaleStatus.COMPLETED) {
 			for (SaleItem item : sale.getItems()) {
 				Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
@@ -142,7 +164,9 @@ public class SaleServiceImpl implements SaleService {
 		sale.setStatus(SaleStatus.CANCELLED);
 		sale.setCancelReason(request.reason());
 		log.info("Venda {} cancelada", id);
-		return saleMapper.toDto(saleRepository.save(sale));
+		Sale savedSale = saleRepository.save(sale);
+		recordStatusChange(savedSale, previousStatus, SaleStatus.CANCELLED, request.reason(), manager);
+		return saleMapper.toDto(savedSale);
 	}
 
 	@Override
@@ -153,12 +177,14 @@ public class SaleServiceImpl implements SaleService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public Page<SaleDTO> list(Pageable pageable) {
+	public Page<SaleDTO> list(SaleStatus status, UUID sellerId, LocalDate from, LocalDate to, Pageable pageable) {
 		User user = authService.getAuthenticatedUser();
+		LocalDateTime fromDate = from == null ? null : from.atStartOfDay();
+		LocalDateTime toDate = to == null ? null : to.plusDays(1).atStartOfDay();
 		if (user.getRole() == Role.SELLER) {
-			return saleRepository.findAllBySellerId(user.getId(), pageable).map(saleMapper::toDto);
+			return saleRepository.search(status, user.getId(), fromDate, toDate, pageable).map(saleMapper::toDto);
 		}
-		return saleRepository.findAll(pageable).map(saleMapper::toDto);
+		return saleRepository.search(status, sellerId, fromDate, toDate, pageable).map(saleMapper::toDto);
 	}
 
 	private Sale findVisibleSale(UUID id) {
@@ -178,16 +204,35 @@ public class SaleServiceImpl implements SaleService {
 		}
 	}
 
-	private void ensureManager() {
+	private User ensureManager() {
 		User user = authService.getAuthenticatedUser();
 		if (user.getRole() != Role.MANAGER) {
 			throw new UnauthorizedOperationException("Apenas gerentes podem finalizar ou cancelar vendas");
 		}
+		return user;
 	}
 
 	private void validateStock(Product product, int requested) {
 		if (!product.isActive() || product.getStockQuantity() < requested) {
 			throw new InsufficientStockException(product.getId(), requested, product.getStockQuantity());
 		}
+	}
+
+	private void validateStockForPendingSale(Product product, int requested) {
+		Long pendingQuantity = saleItemRepository.sumQuantityByProductIdAndSaleStatus(product.getId(), SaleStatus.PENDING);
+		int available = product.getStockQuantity() - pendingQuantity.intValue();
+		if (!product.isActive() || available < requested) {
+			throw new InsufficientStockException(product.getId(), requested, Math.max(available, 0));
+		}
+	}
+
+	private void recordStatusChange(Sale sale, SaleStatus previousStatus, SaleStatus newStatus, String reason, User changedBy) {
+		saleStatusHistoryRepository.save(SaleStatusHistory.builder()
+				.sale(sale)
+				.previousStatus(previousStatus)
+				.newStatus(newStatus)
+				.reason(reason)
+				.changedBy(changedBy)
+				.build());
 	}
 }

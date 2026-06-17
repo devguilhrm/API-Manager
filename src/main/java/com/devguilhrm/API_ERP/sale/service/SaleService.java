@@ -3,9 +3,11 @@ package com.devguilhrm.API_ERP.sale.service;
 import com.devguilhrm.API_ERP.sale.dto.CancelSaleRequest;
 import com.devguilhrm.API_ERP.sale.dto.CreateSaleRequest;
 import com.devguilhrm.API_ERP.sale.dto.SaleDTO;
+import com.devguilhrm.API_ERP.sale.enums.SaleStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 public interface SaleService {
@@ -18,5 +20,9 @@ public interface SaleService {
 
 	SaleDTO getById(UUID id);
 
-	Page<SaleDTO> list(Pageable pageable);
+	default Page<SaleDTO> list(Pageable pageable) {
+		return list(null, null, null, null, pageable);
+	}
+
+	Page<SaleDTO> list(SaleStatus status, UUID sellerId, LocalDate from, LocalDate to, Pageable pageable);
 }

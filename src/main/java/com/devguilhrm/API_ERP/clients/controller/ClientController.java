@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -38,8 +39,13 @@ public class ClientController {
 	@Operation(summary = "Lista clientes", description = "Managers veem todos; sellers veem apenas seus clientes")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Clientes listados")
 	@GetMapping
-	public ResponseEntity<ApiResponse<PageResponse<ClientDTO>>> list(Pageable pageable) {
-		return ResponseEntity.ok(ApiResponse.success("Clientes listados com sucesso", PageResponse.from(clientService.list(pageable))));
+	public ResponseEntity<ApiResponse<PageResponse<ClientDTO>>> list(
+			@RequestParam(required = false) String search,
+			@RequestParam(required = false) UUID sellerId,
+			Pageable pageable
+	) {
+		return ResponseEntity.ok(ApiResponse.success("Clientes listados com sucesso",
+				PageResponse.from(clientService.list(search, sellerId, pageable))));
 	}
 
 	@Operation(summary = "Busca cliente", description = "Busca cliente por ID respeitando isolamento por vendedor")

@@ -71,7 +71,7 @@ class ClientServiceTest {
 	@Test
 	void sellerListShouldOnlyUseSellerClients() {
 		when(authService.getAuthenticatedUser()).thenReturn(seller);
-		when(clientRepository.findAllBySellerId(seller.getId(), PageRequest.of(0, 10))).thenReturn(new PageImpl<>(List.of(client)));
+		when(clientRepository.search(null, seller.getId(), PageRequest.of(0, 10))).thenReturn(new PageImpl<>(List.of(client)));
 		when(clientMapper.toDto(client)).thenReturn(dto(client));
 
 		var page = clientService.list(PageRequest.of(0, 10));

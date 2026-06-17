@@ -18,7 +18,9 @@ import com.devguilhrm.API_ERP.sale.entity.Sale;
 import com.devguilhrm.API_ERP.sale.entity.SaleItem;
 import com.devguilhrm.API_ERP.sale.enums.SaleStatus;
 import com.devguilhrm.API_ERP.sale.mapper.SaleMapper;
+import com.devguilhrm.API_ERP.sale.repository.SaleItemRepository;
 import com.devguilhrm.API_ERP.sale.repository.SaleRepository;
+import com.devguilhrm.API_ERP.sale.repository.SaleStatusHistoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,6 +54,12 @@ class SaleServiceTest {
 	private ProductRepository productRepository;
 
 	@Mock
+	private SaleItemRepository saleItemRepository;
+
+	@Mock
+	private SaleStatusHistoryRepository saleStatusHistoryRepository;
+
+	@Mock
 	private SaleMapper saleMapper;
 
 	@Mock
@@ -82,6 +90,7 @@ class SaleServiceTest {
 		when(authService.getAuthenticatedUser()).thenReturn(seller);
 		when(clientRepository.findById(client.getId())).thenReturn(Optional.of(client));
 		when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
+		when(saleItemRepository.sumQuantityByProductIdAndSaleStatus(product.getId(), SaleStatus.PENDING)).thenReturn(0L);
 		when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
 		when(saleMapper.toDto(any(Sale.class))).thenReturn(new SaleDTO(null, null, null, null, null, SaleStatus.PENDING, null, null, null, null, List.of(), null, null));
 
@@ -91,6 +100,23 @@ class SaleServiceTest {
 		verify(saleRepository).save(captor.capture());
 		assertThat(captor.getValue().getStatus()).isEqualTo(SaleStatus.PENDING);
 		assertThat(product.getStockQuantity()).isEqualTo(5);
+	}
+
+	@Test
+	void createShouldConsiderPendingSaleQuantities() {
+		when(authService.getAuthenticatedUser()).thenReturn(seller);
+		when(clientRepository.findById(client.getId())).thenReturn(Optional.of(client));
+		when(productRepository.findById(product.getId())).thenReturn(Optional.of(product));
+		when(saleItemRepository.sumQuantityByProductIdAndSaleStatus(product.getId(), SaleStatus.PENDING)).thenReturn(4L);
+
+		assertThatThrownBy(() -> saleService.create(new CreateSaleRequest(
+				client.getId(),
+				PaymentMethod.PIX,
+				BigDecimal.ZERO,
+				List.of(new CreateSaleItemRequest(product.getId(), 2))
+		))).isInstanceOf(InsufficientStockException.class);
+
+		verify(saleRepository, never()).save(any(Sale.class));
 	}
 
 	@Test

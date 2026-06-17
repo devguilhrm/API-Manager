@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -40,17 +42,19 @@ public class DashboardServiceImpl implements DashboardService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public DashboardDTO getGlobalDashboard() {
+	public DashboardDTO getGlobalDashboard(LocalDate from, LocalDate to) {
 		log.info("Gerando dashboard global");
-		List<RevenueBySellerDTO> revenueBySeller = saleRepository.sumRevenueBySeller(SaleStatus.COMPLETED).stream()
+		LocalDateTime fromDate = from == null ? null : from.atStartOfDay();
+		LocalDateTime toDate = to == null ? null : to.plusDays(1).atStartOfDay();
+		List<RevenueBySellerDTO> revenueBySeller = saleRepository.sumRevenueBySellerAndPeriod(SaleStatus.COMPLETED, fromDate, toDate).stream()
 				.map(row -> new RevenueBySellerDTO((String) row[0], (BigDecimal) row[1]))
 				.toList();
 		return new DashboardDTO(
 				clientRepository.count(),
 				productRepository.count(),
 				userRepository.countByRole(Role.SELLER),
-				saleRepository.count(),
-				saleRepository.sumTotalByStatus(SaleStatus.COMPLETED),
+				saleRepository.countByPeriod(fromDate, toDate),
+				saleRepository.sumTotalByStatusAndPeriod(SaleStatus.COMPLETED, fromDate, toDate),
 				revenueBySeller
 		);
 	}

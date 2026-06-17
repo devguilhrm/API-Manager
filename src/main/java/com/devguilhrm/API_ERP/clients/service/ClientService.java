@@ -17,7 +17,11 @@ public interface ClientService {
 
 	ClientDTO getById(UUID id);
 
-	Page<ClientDTO> list(Pageable pageable);
+	default Page<ClientDTO> list(Pageable pageable) {
+		return list(null, null, pageable);
+	}
+
+	Page<ClientDTO> list(String search, UUID sellerId, Pageable pageable);
 
 	ClientDTO reassign(UUID id, ReassignClientRequest request);
 }

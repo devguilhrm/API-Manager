@@ -59,15 +59,21 @@ public class AuthServiceImpl implements AuthService {
 		);
 		UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
 		RefreshToken refreshToken = refreshTokenService.create(principal.user());
-		return response(principal, refreshToken.getToken());
+		return response(principal, refreshTokenValue(refreshToken));
 	}
 
 	@Override
 	@Transactional
 	public AuthResponse refresh(String refreshTokenValue) {
-		RefreshToken refreshToken = refreshTokenService.validate(refreshTokenValue);
+		RefreshToken refreshToken = refreshTokenService.rotate(refreshTokenValue);
 		UserPrincipal principal = new UserPrincipal(refreshToken.getUser());
-		return response(principal, refreshToken.getToken());
+		return response(principal, refreshTokenValue(refreshToken));
+	}
+
+	@Override
+	@Transactional
+	public void logout(String refreshTokenValue) {
+		refreshTokenService.revoke(refreshTokenValue);
 	}
 
 	@Override
@@ -113,6 +119,10 @@ public class AuthServiceImpl implements AuthService {
 				principal.user().getEmail(),
 				principal.role()
 		);
+	}
+
+	private String refreshTokenValue(RefreshToken refreshToken) {
+		return refreshToken.getRawToken() == null ? refreshToken.getToken() : refreshToken.getRawToken();
 	}
 
 	private UserDTO toDto(User user) {

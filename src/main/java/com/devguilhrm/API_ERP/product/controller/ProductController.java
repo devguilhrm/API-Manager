@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -38,8 +39,14 @@ public class ProductController {
 	@Operation(summary = "Lista produtos", description = "Retorna produtos paginados")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Produtos listados")
 	@GetMapping
-	public ResponseEntity<ApiResponse<PageResponse<ProductDTO>>> list(Pageable pageable) {
-		return ResponseEntity.ok(ApiResponse.success("Produtos listados com sucesso", PageResponse.from(productService.list(pageable))));
+	public ResponseEntity<ApiResponse<PageResponse<ProductDTO>>> list(
+			@RequestParam(required = false) String search,
+			@RequestParam(required = false) Boolean active,
+			@RequestParam(required = false) Integer lowStockThreshold,
+			Pageable pageable
+	) {
+		return ResponseEntity.ok(ApiResponse.success("Produtos listados com sucesso",
+				PageResponse.from(productService.list(search, active, lowStockThreshold, pageable))));
 	}
 
 	@Operation(summary = "Busca produto", description = "Retorna produto por ID")

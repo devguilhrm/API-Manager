@@ -49,7 +49,7 @@ public class SecurityConfig {
 				.cors(cors -> cors.configurationSource(corsConfigurationSource()))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/auth/login", "/auth/refresh", "/swagger-ui/**", "/v3/api-docs/**", "/h2-console/**").permitAll()
+						.requestMatchers("/auth/login", "/auth/refresh", "/auth/logout", "/swagger-ui/**", "/v3/api-docs/**", "/h2-console/**").permitAll()
 						.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 						.anyRequest().authenticated()
 				)

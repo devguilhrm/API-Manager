@@ -16,6 +16,14 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 	@Query("select p from Product p where p.active = true")
 	Page<Product> findAllActive(Pageable pageable);
 
+	@Query("""
+			select p from Product p
+			where (:search is null or lower(p.name) like lower(concat('%', :search, '%')))
+			  and (:active is null or p.active = :active)
+			  and (:lowStockThreshold is null or p.stockQuantity <= :lowStockThreshold)
+			""")
+	Page<Product> search(String search, Boolean active, Integer lowStockThreshold, Pageable pageable);
+
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select p from Product p where p.id = :id")
 	Optional<Product> findByIdForUpdate(UUID id);

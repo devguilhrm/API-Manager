@@ -53,8 +53,9 @@ public class ProductServiceImpl implements ProductService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public Page<ProductDTO> list(Pageable pageable) {
-		return productRepository.findAll(pageable).map(productMapper::toDto);
+	public Page<ProductDTO> list(String search, Boolean active, Integer lowStockThreshold, Pageable pageable) {
+		Boolean effectiveActive = active == null ? Boolean.TRUE : active;
+		return productRepository.search(normalize(search), effectiveActive, lowStockThreshold, pageable).map(productMapper::toDto);
 	}
 
 	@Override
@@ -69,5 +70,9 @@ public class ProductServiceImpl implements ProductService {
 	private Product findEntity(UUID id) {
 		return productRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Produto", id));
+	}
+
+	private String normalize(String value) {
+		return value == null || value.isBlank() ? null : value.trim();
 	}
 }

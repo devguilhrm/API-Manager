@@ -78,13 +78,15 @@ class AuthServiceTest {
 	@Test
 	void refreshShouldReturnNewAccessToken() {
 		User user = user();
-		when(refreshTokenService.validate("refresh")).thenReturn(RefreshToken.builder().user(user).token("refresh").expiresAt(Instant.now()).build());
+		RefreshToken rotatedToken = RefreshToken.builder().user(user).token("hashed-refresh").expiresAt(Instant.now()).build();
+		rotatedToken.setRawToken("new-refresh");
+		when(refreshTokenService.rotate("refresh")).thenReturn(rotatedToken);
 		when(jwtService.generateAccessToken(any(UserPrincipal.class))).thenReturn("access");
 
 		var response = authService.refresh(new RefreshRequest("refresh").refreshToken());
 
 		assertThat(response.accessToken()).isEqualTo("access");
-		assertThat(response.refreshToken()).isEqualTo("refresh");
+		assertThat(response.refreshToken()).isEqualTo("new-refresh");
 	}
 
 	private User user() {

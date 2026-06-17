@@ -16,4 +16,16 @@ public interface ClientRepository extends JpaRepository<Client, UUID> {
 
 	@Query("select c from Client c where c.seller.id = :sellerId")
 	Page<Client> findAllBySellerId(UUID sellerId, Pageable pageable);
+
+	@Query("""
+			select c from Client c
+			where (:sellerId is null or c.seller.id = :sellerId)
+			  and (
+					:search is null
+					or lower(c.name) like lower(concat('%', :search, '%'))
+					or lower(c.email) like lower(concat('%', :search, '%'))
+					or c.phone like concat('%', :search, '%')
+			  )
+			""")
+	Page<Client> search(String search, UUID sellerId, Pageable pageable);
 }

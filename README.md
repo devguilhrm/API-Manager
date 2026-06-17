@@ -11,7 +11,7 @@ Production-grade CRM REST API for sales teams, managers, clients, products, inve
 
 CRM API REST is a Java Spring Boot backend designed to manage customers, sellers, products, sales, and managerial dashboards through a secure REST interface.
 
-Key technical differentiators include role-based access control, a sale state machine, pessimistic locking during stock debit, optimistic locking on entities, standardized API responses, and centralized error handling.
+Key technical differentiators include role-based access control, a sale state machine, pending-stock commitment checks, pessimistic locking during stock debit, optimistic locking on entities, hashed refresh tokens with rotation, standardized API responses, and centralized error handling.
 
 ## Features
 
@@ -30,7 +30,7 @@ Key technical differentiators include role-based access control, a sale state ma
 - Create clients automatically linked to the authenticated seller.
 - View only owned clients and sales.
 - Create sales with `PENDING` status.
-- Validate stock during sale creation without debiting inventory.
+- Validate stock during sale creation without debiting inventory, considering quantities already committed in other pending sales.
 
 **Sale Flow**
 
@@ -114,6 +114,14 @@ cd API-ERP
 http://localhost:8080/api/swagger-ui/index.html
 ```
 
+**Run with Docker Compose**
+
+```bash
+docker compose up --build
+```
+
+This starts PostgreSQL and the API with the `prod` profile at `http://localhost:8080/api`.
+
 ## Access Credentials
 
 | Role | Email | Password |
@@ -183,7 +191,20 @@ curl -X PUT http://localhost:8080/api/sales/<sale-id>/cancel \
   -H "Content-Type: application/json" \
   -d '{
     "reason": "Customer requested cancellation"
-  }'
+}'
+```
+
+**Filter examples**
+
+```bash
+curl "http://localhost:8080/api/products?search=notebook&active=true&lowStockThreshold=20" \
+  -H "Authorization: Bearer <access-token>"
+
+curl "http://localhost:8080/api/sales?status=COMPLETED&from=2026-01-01&to=2026-01-31" \
+  -H "Authorization: Bearer <access-token>"
+
+curl "http://localhost:8080/api/dashboard?from=2026-01-01&to=2026-01-31" \
+  -H "Authorization: Bearer <access-token>"
 ```
 
 ## Environment Variables
@@ -212,8 +233,8 @@ Covered areas:
 
 - Authentication service: login, invalid credentials, refresh token flow.
 - Client service: seller binding and data isolation.
-- Product service: product creation.
-- Sale service: creation, completion, cancellation, and overselling prevention.
+- Product service: product creation and active-product listing.
+- Sale service: creation, pending-stock commitment checks, completion, cancellation, and overselling prevention.
 - Integration flow: pending sale creation, manager completion, cancellation, and stock return.
 
 ## Endpoints
@@ -221,25 +242,26 @@ Covered areas:
 | Method | Endpoint | Description | Permission |
 |---|---|---|---|
 | `POST` | `/api/auth/login` | Authenticate user | Public |
-| `POST` | `/api/auth/refresh` | Renew access token | Public |
-| `GET` | `/api/clients` | List clients with seller isolation | Authenticated |
+| `POST` | `/api/auth/refresh` | Renew access token with rotation | Public |
+| `POST` | `/api/auth/logout` | Revoke refresh token | Public |
+| `GET` | `/api/clients` | List clients with seller isolation; filters: `search`, `sellerId` | Authenticated |
 | `GET` | `/api/clients/{id}` | Get client by ID | Authenticated |
 | `POST` | `/api/clients` | Create client for authenticated seller | SELLER |
 | `PUT` | `/api/clients/{id}` | Update client | Authenticated |
 | `PUT` | `/api/clients/{id}/reassign` | Reassign client to another seller | MANAGER |
-| `GET` | `/api/products` | List products | Authenticated |
+| `GET` | `/api/products` | List active products by default; filters: `search`, `active`, `lowStockThreshold` | Authenticated |
 | `GET` | `/api/products/{id}` | Get product by ID | Authenticated |
 | `POST` | `/api/products` | Create product | MANAGER |
 | `PUT` | `/api/products/{id}` | Update product | MANAGER |
 | `DELETE` | `/api/products/{id}` | Deactivate product | MANAGER |
-| `GET` | `/api/sales` | List sales with seller isolation | Authenticated |
+| `GET` | `/api/sales` | List sales with seller isolation; filters: `status`, `sellerId`, `from`, `to` | Authenticated |
 | `GET` | `/api/sales/{id}` | Get sale by ID | Authenticated |
 | `POST` | `/api/sales` | Create pending sale | SELLER |
 | `PUT` | `/api/sales/{id}/complete` | Complete sale and debit stock | MANAGER |
 | `PUT` | `/api/sales/{id}/cancel` | Cancel sale and return stock when needed | MANAGER |
 | `GET` | `/api/sellers` | List sellers | MANAGER |
 | `POST` | `/api/sellers` | Create seller | MANAGER |
-| `GET` | `/api/dashboard` | View global CRM dashboard | MANAGER |
+| `GET` | `/api/dashboard` | View global CRM dashboard; filters: `from`, `to` | MANAGER |
 
 ## Contribution
 

@@ -10,8 +10,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,5 +44,18 @@ class ProductServiceTest {
 		when(productMapper.toDto(product)).thenReturn(dto);
 
 		assertThat(productService.create(request)).isEqualTo(dto);
+	}
+
+	@Test
+	void listShouldDefaultToActiveProducts() {
+		Product product = Product.builder().name("Produto").description("Desc").price(new BigDecimal("10.00")).stockQuantity(5).active(true).build();
+		product.setId(UUID.randomUUID());
+		ProductDTO dto = new ProductDTO(product.getId(), product.getName(), product.getDescription(), product.getPrice(), product.getStockQuantity(), true, null, null);
+		PageRequest pageable = PageRequest.of(0, 10);
+
+		when(productRepository.search(null, true, null, pageable)).thenReturn(new PageImpl<>(List.of(product)));
+		when(productMapper.toDto(product)).thenReturn(dto);
+
+		assertThat(productService.list(pageable).getContent()).containsExactly(dto);
 	}
 }
