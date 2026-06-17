@@ -54,6 +54,12 @@ management:
       show-details: when_authorized
 
 app:
+  bootstrap:
+    manager:
+      enabled: ${BOOTSTRAP_MANAGER_ENABLED:false}
+      name: ${BOOTSTRAP_MANAGER_NAME:Administrador}
+      email: ${BOOTSTRAP_MANAGER_EMAIL:}
+      password: ${BOOTSTRAP_MANAGER_PASSWORD:}
   cache:
     ttl-minutes: ${CACHE_TTL_MINUTES:5}
   rate-limit:

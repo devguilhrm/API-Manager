@@ -153,6 +153,15 @@ Start the full stack (PostgreSQL, Redis, Kafka, API, Nginx):
 docker compose up -d --build
 ```
 
+To create an initial manager in the Docker/prod stack, enable bootstrap explicitly:
+
+```bash
+BOOTSTRAP_MANAGER_ENABLED=true \
+BOOTSTRAP_MANAGER_EMAIL=admin@example.com \
+BOOTSTRAP_MANAGER_PASSWORD='change-me' \
+docker compose up -d --build
+```
+
 The `api` service is not published directly. All external traffic enters through Nginx after the API healthcheck reports `UP`:
 
 ```
@@ -387,6 +396,10 @@ All values can be overridden via environment variables in `docker-compose.yml` o
 | `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` | Max failed login attempts | `5` |
 | `LOGIN_RATE_LIMIT_WINDOW_MINUTES` | Rate-limit window (minutes) | `15` |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins | `http://localhost:3000,...` |
+| `BOOTSTRAP_MANAGER_ENABLED` | Enables initial manager creation on startup | `false` |
+| `BOOTSTRAP_MANAGER_NAME` | Initial manager display name | `Administrador` |
+| `BOOTSTRAP_MANAGER_EMAIL` | Initial manager email, required when bootstrap is enabled | Empty |
+| `BOOTSTRAP_MANAGER_PASSWORD` | Initial manager password, required when bootstrap is enabled | Empty |
 
 ### Redis responsibilities
 
