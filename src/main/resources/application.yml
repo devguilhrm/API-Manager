@@ -44,6 +44,15 @@ server:
   servlet:
     context-path: /api
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
 app:
   cache:
     ttl-minutes: ${CACHE_TTL_MINUTES:5}

@@ -72,13 +72,21 @@ services:
     expose:
       # Porta interna usada pelo Nginx e pelas outras replicas na rede default do Compose.
       - "8080"
+    healthcheck:
+      # Verifica a saude real da aplicacao via Spring Boot Actuator.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
 
   # Reverse proxy e load balancer HTTP exposto para os clientes.
   nginx:
     image: nginx:alpine
     depends_on:
-      # Garante que o servico api seja criado antes do Nginx tentar resolver o upstream.
-      - api
+      # Garante que a API esteja saudavel antes do Nginx tentar encaminhar trafego.
+      api:
+        condition: service_healthy
     ports:
       # Clientes acessam localhost:8080; o Nginx encaminha para as replicas api:8080.
       - "8080:80"

@@ -102,6 +102,7 @@ CANCELLED ◀──────────────────── CANCEL
 |---|---|
 | Java 17 | Runtime |
 | Spring Boot 3.5 | Application framework |
+| Spring Boot Actuator | Health checks and operational metrics |
 | Spring Security | Authentication and authorization |
 | Spring Data JPA / Hibernate | Persistence layer |
 | PostgreSQL 16 | Production database |
@@ -152,7 +153,7 @@ Start the full stack (PostgreSQL, Redis, Kafka, API, Nginx):
 docker compose up -d --build
 ```
 
-The `api` service is not published directly. All external traffic enters through Nginx:
+The `api` service is not published directly. All external traffic enters through Nginx after the API healthcheck reports `UP`:
 
 ```
 http://localhost:8080/api
@@ -165,6 +166,14 @@ http://localhost:8080/api
 | `postgres` | Database | 5432 |
 | `redis` | Cache and security state | 6379 |
 | `kafka` | Event broker | 9092 |
+
+Operational endpoints exposed through the API context path:
+
+| Endpoint | Auth | Purpose |
+|---|---|---|
+| `/api/actuator/health` | Public | Container and load-balancer health verification |
+| `/api/actuator/info` | Public | Basic application info endpoint |
+| `/api/actuator/metrics` | Authenticated | Runtime metrics |
 
 ### Local development seed users
 
