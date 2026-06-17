@@ -5,13 +5,13 @@
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-Production-grade CRM REST API for sales teams, managers, clients, products, inventory, and secure JWT sessions.
+Production-grade CRM REST API for sales teams, managers, clients, products, inventory, cached dashboards, Kafka business events, and secure JWT sessions.
 
 ## About
 
 CRM API REST is a Java Spring Boot backend designed to manage customers, sellers, products, sales, and managerial dashboards through a secure REST interface.
 
-Key technical differentiators include role-based access control, a sale state machine, pending-stock commitment checks, pessimistic locking during stock debit, optimistic locking on entities, hashed refresh tokens with rotation, standardized API responses, and centralized error handling.
+Key technical differentiators include role-based access control, a sale state machine, pending-stock commitment checks, pessimistic locking during stock debit, optimistic locking on entities, Redis-backed cache and rate limiting, hashed refresh tokens with rotation, JWT access-token blacklist, Kafka business events, standardized API responses, and centralized error handling.
 
 ## Features
 
@@ -53,6 +53,8 @@ CANCELLED <----------- CANCELLED
 | JWT (JJWT) | 0.12.x | Access token generation and validation |
 | H2 | Runtime | Development database |
 | PostgreSQL | Runtime | Production database |
+| Redis | 7.x | Cache, JWT blacklist, and login rate limiting |
+| Kafka | KRaft mode | Business event streaming |
 | JPA / Hibernate | 6.x | ORM and persistence |
 | MapStruct | 1.6.x | Entity and DTO mapping |
 | SpringDoc OpenAPI | 2.x | Swagger UI and OpenAPI docs |
@@ -67,18 +69,20 @@ src/main/java/com/devguilhrm/API_ERP/
 ├── auth/           Authentication, users, login, and token renewal contracts
 ├── clients/        Client lifecycle, seller ownership, and reassignment
 ├── common/         BaseEntity, shared enums, and response envelopes
-├── config/         Development seed data
+├── config/         Development seed data and cache configuration
 ├── dashboard/      Managerial revenue and CRM indicators
 ├── exception/      Custom exceptions and GlobalExceptionHandler
 ├── manager/        Manager-specific operations
 ├── product/        Product catalog and stock management
 ├── refreshToken/   Persistent refresh token lifecycle
-├── sale/           Sales, sale items, state machine, and stock rules
+├── sale/           Sales, sale items, events, state machine, and stock rules
 ├── security/       JWT filter, security chain, CORS, and user details
 └── seller/         Seller creation and listing workflows
 ```
 
 The API follows a layered structure: `controller -> service -> repository`. Controllers expose REST endpoints and return DTOs, services enforce business rules and transactions, repositories isolate persistence, and MapStruct mappers convert entities without exposing JPA models. Shared concerns live in `BaseEntity`, response wrappers, and `GlobalExceptionHandler`.
+
+Redis is used for short-lived operational data: dashboard and list caches, access-token blacklist, and login rate limiting. Kafka is used for asynchronous business events emitted by the sale workflow.
 
 ## Prerequisites and Installation
 
@@ -120,7 +124,7 @@ http://localhost:8080/api/swagger-ui/index.html
 docker compose up --build
 ```
 
-This starts PostgreSQL and the API with the `prod` profile at `http://localhost:8080/api`.
+This starts PostgreSQL, Redis, Kafka in KRaft mode, and the API with the `prod` profile at `http://localhost:8080/api`.
 
 ## Access Credentials
 
@@ -207,6 +211,26 @@ curl "http://localhost:8080/api/dashboard?from=2026-01-01&to=2026-01-31" \
   -H "Authorization: Bearer <access-token>"
 ```
 
+## Redis and Kafka
+
+**Redis responsibilities**
+
+- Dashboard cache with a default TTL of 5 minutes.
+- Cached product and client list queries with filters and pagination.
+- JWT access-token blacklist after logout.
+- Login attempt rate limiting.
+
+**Kafka topics**
+
+| Topic | Published when |
+|---|---|
+| `sales.created` | A seller creates a pending sale |
+| `sales.completed` | A manager completes a sale |
+| `sales.cancelled` | A manager cancels a sale |
+| `stock.updated` | Stock is debited or returned |
+
+`SaleEventConsumer` listens to these topics for asynchronous audit logging.
+
 ## Environment Variables
 
 | Variable | Description | Default |
@@ -238,11 +262,11 @@ Run the automated test suite:
 
 Covered areas:
 
-- Authentication service: login, invalid credentials, refresh token flow.
+- Authentication service: login, invalid credentials, refresh token flow, login rate-limit integration.
 - Client service: seller binding and data isolation.
 - Product service: product creation and active-product listing.
 - Sale service: creation, pending-stock commitment checks, completion, cancellation, and overselling prevention.
-- Integration flow: pending sale creation, manager completion, cancellation, and stock return.
+- Integration flow: pending sale creation, manager completion, cancellation, stock return, and Testcontainers wiring for Redis/Kafka when Docker is available.
 
 ## Endpoints
 
@@ -250,7 +274,7 @@ Covered areas:
 |---|---|---|---|
 | `POST` | `/api/auth/login` | Authenticate user | Public |
 | `POST` | `/api/auth/refresh` | Renew access token with rotation | Public |
-| `POST` | `/api/auth/logout` | Revoke refresh token | Public |
+| `POST` | `/api/auth/logout` | Revoke refresh token and blacklist provided access token | Public |
 | `GET` | `/api/clients` | List clients with seller isolation; filters: `search`, `sellerId` | Authenticated |
 | `GET` | `/api/clients/{id}` | Get client by ID | Authenticated |
 | `POST` | `/api/clients` | Create client for authenticated seller | SELLER |
