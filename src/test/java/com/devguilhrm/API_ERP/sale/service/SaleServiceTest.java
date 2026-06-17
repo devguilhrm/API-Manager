@@ -17,6 +17,7 @@ import com.devguilhrm.API_ERP.sale.dto.SaleDTO;
 import com.devguilhrm.API_ERP.sale.entity.Sale;
 import com.devguilhrm.API_ERP.sale.entity.SaleItem;
 import com.devguilhrm.API_ERP.sale.enums.SaleStatus;
+import com.devguilhrm.API_ERP.sale.event.SaleEventPublisher;
 import com.devguilhrm.API_ERP.sale.mapper.SaleMapper;
 import com.devguilhrm.API_ERP.sale.repository.SaleItemRepository;
 import com.devguilhrm.API_ERP.sale.repository.SaleRepository;
@@ -58,6 +59,9 @@ class SaleServiceTest {
 
 	@Mock
 	private SaleStatusHistoryRepository saleStatusHistoryRepository;
+
+	@Mock
+	private SaleEventPublisher saleEventPublisher;
 
 	@Mock
 	private SaleMapper saleMapper;

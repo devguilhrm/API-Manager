@@ -8,6 +8,7 @@ import com.devguilhrm.API_ERP.auth.repository.UserRepository;
 import com.devguilhrm.API_ERP.refreshToken.entity.RefreshToken;
 import com.devguilhrm.API_ERP.refreshToken.service.RefreshTokenService;
 import com.devguilhrm.API_ERP.security.JwtService;
+import com.devguilhrm.API_ERP.security.TokenBlacklistService;
 import com.devguilhrm.API_ERP.security.UserPrincipal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,6 +47,12 @@ class AuthServiceTest {
 
 	@Mock
 	private PasswordEncoder passwordEncoder;
+
+	@Mock
+	private LoginRateLimitService loginRateLimitService;
+
+	@Mock
+	private TokenBlacklistService tokenBlacklistService;
 
 	@InjectMocks
 	private AuthServiceImpl authService;

@@ -9,6 +9,8 @@ import com.devguilhrm.API_ERP.product.mapper.ProductMapper;
 import com.devguilhrm.API_ERP.product.repository.ProductRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,7 @@ public class ProductServiceImpl implements ProductService {
 	}
 
 	@Override
+	@CacheEvict(value = "products", allEntries = true)
 	@Transactional
 	public ProductDTO create(CreateProductRequest request) {
 		log.info("Criando produto {}", request.name());
@@ -37,6 +40,7 @@ public class ProductServiceImpl implements ProductService {
 	}
 
 	@Override
+	@CacheEvict(value = "products", allEntries = true)
 	@Transactional
 	public ProductDTO update(UUID id, UpdateProductRequest request) {
 		Product product = findEntity(id);
@@ -52,6 +56,10 @@ public class ProductServiceImpl implements ProductService {
 	}
 
 	@Override
+	@Cacheable(
+			value = "products",
+			key = "{#search, #active, #lowStockThreshold, #pageable.pageNumber, #pageable.pageSize, #pageable.sort.toString()}"
+	)
 	@Transactional(readOnly = true)
 	public Page<ProductDTO> list(String search, Boolean active, Integer lowStockThreshold, Pageable pageable) {
 		Boolean effectiveActive = active == null ? Boolean.TRUE : active;
@@ -59,6 +67,7 @@ public class ProductServiceImpl implements ProductService {
 	}
 
 	@Override
+	@CacheEvict(value = "products", allEntries = true)
 	@Transactional
 	public void delete(UUID id) {
 		Product product = findEntity(id);

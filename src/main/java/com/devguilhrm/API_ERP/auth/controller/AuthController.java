@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,8 +45,18 @@ public class AuthController {
 	@Operation(summary = "Revoga refresh token", description = "Encerra a sessao associada ao refresh token informado")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Logout realizado")
 	@PostMapping("/logout")
-	public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody RefreshRequest request) {
-		authService.logout(request.refreshToken());
+	public ResponseEntity<ApiResponse<Void>> logout(
+			@Valid @RequestBody RefreshRequest request,
+			@RequestHeader(value = "Authorization", required = false) String authorization
+	) {
+		authService.logout(request.refreshToken(), bearerToken(authorization));
 		return ResponseEntity.ok(ApiResponse.success("Logout realizado com sucesso", null));
+	}
+
+	private String bearerToken(String authorization) {
+		if (authorization == null || !authorization.startsWith("Bearer ")) {
+			return null;
+		}
+		return authorization.substring(7);
 	}
 }

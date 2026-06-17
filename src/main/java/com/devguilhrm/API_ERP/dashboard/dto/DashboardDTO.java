@@ -1,5 +1,6 @@
 package com.devguilhrm.API_ERP.dashboard.dto;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -10,5 +11,5 @@ public record DashboardDTO(
 		long totalSales,
 		BigDecimal completedRevenue,
 		List<RevenueBySellerDTO> revenueBySeller
-) {
+) implements Serializable {
 }

@@ -12,12 +12,14 @@ import com.devguilhrm.API_ERP.exception.ResourceNotFoundException;
 import com.devguilhrm.API_ERP.refreshToken.entity.RefreshToken;
 import com.devguilhrm.API_ERP.refreshToken.service.RefreshTokenService;
 import com.devguilhrm.API_ERP.security.JwtService;
+import com.devguilhrm.API_ERP.security.TokenBlacklistService;
 import com.devguilhrm.API_ERP.security.UserPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,28 +37,42 @@ public class AuthServiceImpl implements AuthService {
 	private final RefreshTokenService refreshTokenService;
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final LoginRateLimitService loginRateLimitService;
+	private final TokenBlacklistService tokenBlacklistService;
 
 	public AuthServiceImpl(
 			AuthenticationManager authenticationManager,
 			JwtService jwtService,
 			RefreshTokenService refreshTokenService,
 			UserRepository userRepository,
-			PasswordEncoder passwordEncoder
+			PasswordEncoder passwordEncoder,
+			LoginRateLimitService loginRateLimitService,
+			TokenBlacklistService tokenBlacklistService
 	) {
 		this.authenticationManager = authenticationManager;
 		this.jwtService = jwtService;
 		this.refreshTokenService = refreshTokenService;
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
+		this.loginRateLimitService = loginRateLimitService;
+		this.tokenBlacklistService = tokenBlacklistService;
 	}
 
 	@Override
 	@Transactional
 	public AuthResponse login(LoginRequest request) {
 		log.info("Login solicitado para {}", request.email());
-		Authentication authentication = authenticationManager.authenticate(
-				new UsernamePasswordAuthenticationToken(request.email(), request.password())
-		);
+		loginRateLimitService.ensureAllowed(request.email());
+		Authentication authentication;
+		try {
+			authentication = authenticationManager.authenticate(
+					new UsernamePasswordAuthenticationToken(request.email(), request.password())
+			);
+			loginRateLimitService.reset(request.email());
+		} catch (BadCredentialsException ex) {
+			loginRateLimitService.recordFailure(request.email());
+			throw ex;
+		}
 		UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
 		RefreshToken refreshToken = refreshTokenService.create(principal.user());
 		return response(principal, refreshTokenValue(refreshToken));
@@ -72,8 +88,11 @@ public class AuthServiceImpl implements AuthService {
 
 	@Override
 	@Transactional
-	public void logout(String refreshTokenValue) {
+	public void logout(String refreshTokenValue, String accessToken) {
 		refreshTokenService.revoke(refreshTokenValue);
+		if (accessToken != null && !accessToken.isBlank()) {
+			tokenBlacklistService.blacklist(accessToken, jwtService.extractExpiration(accessToken));
+		}
 	}
 
 	@Override

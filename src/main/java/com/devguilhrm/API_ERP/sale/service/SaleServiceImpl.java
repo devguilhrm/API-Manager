@@ -19,12 +19,14 @@ import com.devguilhrm.API_ERP.sale.entity.Sale;
 import com.devguilhrm.API_ERP.sale.entity.SaleItem;
 import com.devguilhrm.API_ERP.sale.entity.SaleStatusHistory;
 import com.devguilhrm.API_ERP.sale.enums.SaleStatus;
+import com.devguilhrm.API_ERP.sale.event.SaleEventPublisher;
 import com.devguilhrm.API_ERP.sale.mapper.SaleMapper;
 import com.devguilhrm.API_ERP.sale.repository.SaleItemRepository;
 import com.devguilhrm.API_ERP.sale.repository.SaleRepository;
 import com.devguilhrm.API_ERP.sale.repository.SaleStatusHistoryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -47,6 +49,7 @@ public class SaleServiceImpl implements SaleService {
 	private final ProductRepository productRepository;
 	private final SaleItemRepository saleItemRepository;
 	private final SaleStatusHistoryRepository saleStatusHistoryRepository;
+	private final SaleEventPublisher saleEventPublisher;
 	private final SaleMapper saleMapper;
 	private final AuthService authService;
 
@@ -56,6 +59,7 @@ public class SaleServiceImpl implements SaleService {
 			ProductRepository productRepository,
 			SaleItemRepository saleItemRepository,
 			SaleStatusHistoryRepository saleStatusHistoryRepository,
+			SaleEventPublisher saleEventPublisher,
 			SaleMapper saleMapper,
 			AuthService authService
 	) {
@@ -64,11 +68,13 @@ public class SaleServiceImpl implements SaleService {
 		this.productRepository = productRepository;
 		this.saleItemRepository = saleItemRepository;
 		this.saleStatusHistoryRepository = saleStatusHistoryRepository;
+		this.saleEventPublisher = saleEventPublisher;
 		this.saleMapper = saleMapper;
 		this.authService = authService;
 	}
 
 	@Override
+	@CacheEvict(value = "dashboard", allEntries = true)
 	@Transactional
 	public SaleDTO create(CreateSaleRequest request) {
 		User seller = authService.getAuthenticatedUser();
@@ -117,10 +123,12 @@ public class SaleServiceImpl implements SaleService {
 		log.info("Criando venda pendente para cliente {}", client.getId());
 		Sale savedSale = saleRepository.save(sale);
 		recordStatusChange(savedSale, null, SaleStatus.PENDING, null, seller);
+		saleEventPublisher.saleCreated(savedSale);
 		return saleMapper.toDto(savedSale);
 	}
 
 	@Override
+	@CacheEvict(value = "dashboard", allEntries = true)
 	@Transactional
 	public SaleDTO complete(UUID id) {
 		User manager = ensureManager();
@@ -136,16 +144,19 @@ public class SaleServiceImpl implements SaleService {
 			validateStock(product, item.getQuantity());
 			product.setStockQuantity(product.getStockQuantity() - item.getQuantity());
 			productRepository.save(product);
+			saleEventPublisher.stockUpdated(sale, product, -item.getQuantity(), "DEBIT");
 		}
 		SaleStatus previousStatus = sale.getStatus();
 		sale.setStatus(SaleStatus.COMPLETED);
 		log.info("Venda {} finalizada", id);
 		Sale savedSale = saleRepository.save(sale);
 		recordStatusChange(savedSale, previousStatus, SaleStatus.COMPLETED, null, manager);
+		saleEventPublisher.saleCompleted(savedSale);
 		return saleMapper.toDto(savedSale);
 	}
 
 	@Override
+	@CacheEvict(value = "dashboard", allEntries = true)
 	@Transactional
 	public SaleDTO cancel(UUID id, CancelSaleRequest request) {
 		User manager = ensureManager();
@@ -159,6 +170,7 @@ public class SaleServiceImpl implements SaleService {
 						.orElseThrow(() -> new ResourceNotFoundException("Produto", item.getProduct().getId()));
 				product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
 				productRepository.save(product);
+				saleEventPublisher.stockUpdated(sale, product, item.getQuantity(), "RETURN");
 			}
 		}
 		sale.setStatus(SaleStatus.CANCELLED);
@@ -166,6 +178,7 @@ public class SaleServiceImpl implements SaleService {
 		log.info("Venda {} cancelada", id);
 		Sale savedSale = saleRepository.save(sale);
 		recordStatusChange(savedSale, previousStatus, SaleStatus.CANCELLED, request.reason(), manager);
+		saleEventPublisher.saleCancelled(savedSale);
 		return saleMapper.toDto(savedSale);
 	}
 

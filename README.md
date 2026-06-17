@@ -214,6 +214,13 @@ curl "http://localhost:8080/api/dashboard?from=2026-01-01&to=2026-01-31" \
 | `JWT_SECRET` | Secret key used to sign access tokens | `dev-secret-key-change-me-dev-secret-key-change-me` |
 | `JWT_ACCESS_MINUTES` | Access token expiration in minutes | `15` |
 | `JWT_REFRESH_DAYS` | Refresh token expiration in days | `7` |
+| `REDIS_HOST` | Redis host used for cache, JWT blacklist, and login rate limit | `localhost` |
+| `REDIS_PORT` | Redis port | `6379` |
+| `CACHE_TTL_MINUTES` | Redis cache TTL in minutes | `5` |
+| `LOGIN_RATE_LIMIT_MAX_ATTEMPTS` | Maximum failed login attempts in the rate-limit window | `5` |
+| `LOGIN_RATE_LIMIT_WINDOW_MINUTES` | Login rate-limit window in minutes | `15` |
+| `KAFKA_BOOTSTRAP_SERVERS` | Kafka bootstrap servers | `localhost:9092` |
+| `KAFKA_PRODUCER_MAX_BLOCK_MS` | Max producer metadata wait before failing fast | `2000` |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed origins | `http://localhost:3000,http://localhost:5173` |
 | `SPRING_PROFILES_ACTIVE` | Active Spring profile | `dev` |
 | `server.port` | HTTP server port | `8080` |

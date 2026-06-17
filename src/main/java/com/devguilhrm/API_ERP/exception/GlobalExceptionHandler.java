@@ -58,6 +58,11 @@ public class GlobalExceptionHandler {
 		return build(HttpStatus.FORBIDDEN, "Acesso negado", ex.getMessage());
 	}
 
+	@ExceptionHandler(RateLimitExceededException.class)
+	public ResponseEntity<ErrorResponse> handleRateLimitExceeded(RateLimitExceededException ex) {
+		return build(HttpStatus.TOO_MANY_REQUESTS, "Limite de tentativas excedido", ex.getMessage());
+	}
+
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
 		log.error("Erro inesperado", ex);

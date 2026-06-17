@@ -16,6 +16,8 @@ import com.devguilhrm.API_ERP.exception.ResourceNotFoundException;
 import com.devguilhrm.API_ERP.exception.UnauthorizedOperationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -46,6 +48,7 @@ public class ClientServiceImpl implements ClientService {
 	}
 
 	@Override
+	@CacheEvict(value = "clients", allEntries = true)
 	@Transactional
 	public ClientDTO create(CreateClientRequest request) {
 		if (clientRepository.existsByEmail(request.email())) {
@@ -63,6 +66,7 @@ public class ClientServiceImpl implements ClientService {
 	}
 
 	@Override
+	@CacheEvict(value = "clients", allEntries = true)
 	@Transactional
 	public ClientDTO update(UUID id, UpdateClientRequest request) {
 		Client client = findVisibleClient(id);
@@ -81,6 +85,10 @@ public class ClientServiceImpl implements ClientService {
 	}
 
 	@Override
+	@Cacheable(
+			value = "clients",
+			key = "{#search, #sellerId, #pageable.pageNumber, #pageable.pageSize, #pageable.sort.toString()}"
+	)
 	@Transactional(readOnly = true)
 	public Page<ClientDTO> list(String search, UUID sellerId, Pageable pageable) {
 		User user = authService.getAuthenticatedUser();
@@ -91,6 +99,7 @@ public class ClientServiceImpl implements ClientService {
 	}
 
 	@Override
+	@CacheEvict(value = "clients", allEntries = true)
 	@Transactional
 	public ClientDTO reassign(UUID id, ReassignClientRequest request) {
 		Client client = clientRepository.findById(id)

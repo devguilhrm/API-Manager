@@ -14,6 +14,7 @@ import com.devguilhrm.API_ERP.sale.dto.CreateSaleRequest;
 import com.devguilhrm.API_ERP.sale.enums.SaleStatus;
 import com.devguilhrm.API_ERP.sale.service.SaleService;
 import com.devguilhrm.API_ERP.security.UserPrincipal;
+import com.devguilhrm.API_ERP.support.InfrastructureTestContainers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +29,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-class SaleIntegrationTest {
+class SaleIntegrationTest extends InfrastructureTestContainers {
 
 	@Autowired
 	private SaleService saleService;

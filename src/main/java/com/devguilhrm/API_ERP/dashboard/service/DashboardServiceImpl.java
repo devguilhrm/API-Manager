@@ -10,6 +10,7 @@ import com.devguilhrm.API_ERP.sale.enums.SaleStatus;
 import com.devguilhrm.API_ERP.sale.repository.SaleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ public class DashboardServiceImpl implements DashboardService {
 	}
 
 	@Override
+	@Cacheable(value = "dashboard", key = "{#from, #to}")
 	@Transactional(readOnly = true)
 	public DashboardDTO getGlobalDashboard(LocalDate from, LocalDate to) {
 		log.info("Gerando dashboard global");

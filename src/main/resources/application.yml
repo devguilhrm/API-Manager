@@ -21,12 +21,36 @@ spring:
       path: /h2-console
   flyway:
     enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS:2000}
+    consumer:
+      group-id: api-erp
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      properties:
+        spring.json.trusted.packages: com.devguilhrm.API_ERP.*
 
 server:
   servlet:
     context-path: /api
 
 app:
+  cache:
+    ttl-minutes: ${CACHE_TTL_MINUTES:5}
+  rate-limit:
+    login:
+      max-attempts: ${LOGIN_RATE_LIMIT_MAX_ATTEMPTS:5}
+      window-minutes: ${LOGIN_RATE_LIMIT_WINDOW_MINUTES:15}
   jwt:
     secret: ${JWT_SECRET:dev-secret-key-change-me-dev-secret-key-change-me}
     access-token-expiration-minutes: ${JWT_ACCESS_MINUTES:15}

@@ -14,7 +14,11 @@ public interface AuthService {
 
 	AuthResponse refresh(String refreshToken);
 
-	void logout(String refreshToken);
+	default void logout(String refreshToken) {
+		logout(refreshToken, null);
+	}
+
+	void logout(String refreshToken, String accessToken);
 
 	UserDTO createUser(CreateUserRequest request);
 
